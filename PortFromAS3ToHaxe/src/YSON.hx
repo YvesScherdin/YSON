@@ -32,7 +32,7 @@ import flash.errors.Error;
  */
 class YSON
 {
-	// STATIC
+	// region STATIC {
 	static private var STRICT_ERROR_REPORT:Bool = true;
 	
 	static public var allowVerbose:Bool;
@@ -43,6 +43,7 @@ class YSON
 	static private var arr_ignore_value:Array<Dynamic> = [" ", "\n", "\r", "\t", "="];
 	static private var valueTypes:Array<Dynamic> = ["none", "string", "object", "number", "int", "boolean"];
 	static inline private var ESCAPE_CHAR:String = "\\";
+	
 	
 	static public function parseData(source_str:String):Dynamic
 	{
@@ -137,13 +138,20 @@ class YSON
 		}
 	}
 	
-	// INSTANCE
-	private var CurrObject(get, never):Dynamic;
-	private var CurrArray(get, never):Array<Dynamic>;
+	// endregion }
 	
-	private var hierarchy:Array<Dynamic>;  // objects  
-	private var arrayHierarchy:Array<Dynamic>;  // arrays  
-	private var hierarchyTypeHistory:Array<Dynamic>;  // stores booleans, true --> object    false --> array  
+	// region INSTANCE
+	private var CurrObject(get, never):Dynamic;
+	private function get_CurrObject():Dynamic
+	{
+		return hierarchy[hierarchy.length - 1];
+	}
+	
+	private var CurrArray(get, never):Array<Dynamic>;
+	private function get_CurrArray():Array<Dynamic>
+	{
+		return arrayHierarchy[arrayHierarchy.length - 1];
+	}
 	
 	private var text2parse:String;
 	public function getTextSource():String
@@ -152,6 +160,9 @@ class YSON
 	}
 	
 	private var data2parse:Dynamic;
+	private var hierarchy:Array<Dynamic>;  // objects  
+	private var arrayHierarchy:Array<Dynamic>;  // arrays  
+	private var hierarchyTypeHistory:Array<Bool>;  // true --> object    false --> array  
 	
 	private var currSlot:Int;
 	private var index_1:Int;
@@ -218,76 +229,59 @@ class YSON
 		
 		
 		// check for comment
-		if (!isComment)
-		// check for start
+		if (!isComment) // check for start
 		{
-			
+			if (currValueType != "string" && char == "/" && !isLastChar) // could a comment start here?
 			{
-				if (currValueType != "string" && char == "/" && !isLastChar)
-				// could a comment start here?
+				phraseToCheck = text2parse.substr(currSlot, 2);
+				
+				if (phraseToCheck == "//")
 				{
-					
+					// line comment found
+					isComment = true;
+					isBlockComment = false;
+				}
+				else if (phraseToCheck == "/*")
+				{
+					// block comment found
+					isComment = true;
+					isBlockComment = true;
+				}
+				
+				if (isComment)
+				{
+					//comment found
+					// force value-parsing to end
+					if (analyzesValue())
 					{
-						phraseToCheck = text2parse.substr(currSlot, 2);
-						
-						if (phraseToCheck == "//")
-						// line comment found
-						{
-							
-							isComment = true;
-							isBlockComment = false;
-						}
-						else if (phraseToCheck == "/*")
-						// block comment found
-						{
-							
-							isComment = true;
-							isBlockComment = true;
-						}
-						
-						if (isComment)
-						//comment found
-						{
-							
-							// force value-parsing to end
-							if (analyzesValue())
-							{
-								postAddValue();
-							}
-							
-							currSlot++;  // one further step  
-							return;
-						}
+						postAddValue();
 					}
+					
+					currSlot++;  // one further step  
+					return;
 				}
 			}
-		}// check for end of current comment
-		else
+		}
+		else // check for end of current comment
 		{
-			
+			if (isBlockComment)
 			{
-				if (isBlockComment)
-				{
-					phraseToCheck = text2parse.substr(currSlot - 1, 2);
-					if (phraseToCheck == "*/") //end of comment found
-					{
-						
-						{
-							isComment = false;
-						}
-					}
-				}
-				else if (char == "\n" || char == "\r")
+				phraseToCheck = text2parse.substr(currSlot - 1, 2);
+				if (phraseToCheck == "*/") //end of comment found
 				{
 					isComment = false;
 				}
-				
-				if (!isComment)
-				{
-					// comment has ended  
-				}
-				return;
 			}
+			else if (char == "\n" || char == "\r")
+			{
+				isComment = false;
+			}
+			
+			if (!isComment)
+			{
+				// comment has ended  
+			}
+			return;
 		}
 		
 		
@@ -298,98 +292,73 @@ class YSON
 		
 		if (state_key) // analyze key
 		{
-			
+			if (index_1 == -1) // find key start
 			{
-				if (index_1 == -1) // find key start
+				//if( !isOneOfThose( char,["\n","\r"] ) )
+				//report( "char["+currSlot+"]: " + char );
+				if (!isOneOfThose(char, arr_ignore_key))
 				{
-					
-					{
-						//if( !isOneOfThose( char,["\n","\r"] ) )
-						//zui( "char["+currSlot+"]: " + char );
-						if (!isOneOfThose(char, arr_ignore_key))
-						{
-							index_1 = currSlot;
-						}
-					}
-				}// find key end
-				
-				else
-				{
-					
-					{
-						if (index_2 == -1)
-						{
-							if (isOneOfThose(char, [" ", "=", "\n", "\r", "\t", "]", "}", "[", "{"]))
-							//if( isOneOfThose( char,arr_ignore_key ) )
-							{
-								
-								index_2 = currSlot;
-							}
-						}
-					}
+					index_1 = currSlot;
 				}
-				
-				if (index_1 != -1 && index_2 != -1)
-				// finally parse key
+			}
+			else // find key end
+			{
+				if (index_2 == -1)
 				{
-					
+					if (isOneOfThose(char, [" ", "=", "\n", "\r", "\t", "]", "}", "[", "{"]))
+					//if( isOneOfThose( char,arr_ignore_key ) )
 					{
-						currKey = parseKey();
-						state_key = false;
+						index_2 = currSlot;
+						//index_2 = getCharIndexBefore( null,[" ","\r","\n"] )
 					}
 				}
 			}
-		}// analyze value
-		
-		else
-		{
 			
+			if (index_1 != -1 && index_2 != -1) // finally parse key
 			{
-				if (index_1 == -1)
-				// find value start
+				currKey = parseKey();
+				state_key = false;
+			}
+		}
+		else // analyze value
+		{
+			if (index_1 == -1) // find value start
+			{
+				if (!isOneOfThose(char, arr_ignore_value))
 				{
-					
+					if (index_1 == -1)
 					{
-						if (!isOneOfThose(char, arr_ignore_value))
-						{
-							if (index_1 == -1)
-							{
-								index_1 = currSlot;
-							}
-							
-							if (prevChar != ESCAPE_CHAR && (char == "'" || char == "\""))
-							{
-								index_1++;
-								currValueType = "string";
-								doubleQuoMarks = char == "\"";
-							}
-							else if (isOneOfThose(char, arr_numbers))
-							{
-								currValueType = "number";
-							}
-							else if (char == "[")
-							{
-								currValue = new Array<Dynamic>();
-								currValueType = "array";
-								addValue();
-							}
-							else if (char == "{")
-							{
-								currValue = {};
-								currValueType = "object";
-								addValue();
-							}
-						}
+						index_1 = currSlot;
 					}
-				}// find value end
-				
-				else
-				{
 					
+					if (prevChar != ESCAPE_CHAR && (char == "'" || char == "\""))
 					{
-						findValueEnd(char);
+						index_1++;
+						currValueType = "string";
+						doubleQuoMarks = char == "\"";
+					}
+					else if (isOneOfThose(char, arr_numbers))
+					{
+						currValueType = "number";
+					}
+					else if (char == "[")
+					{
+						currValue = new Array<Dynamic>();
+						currValueType = "array";
+						addValue();
+						// there are no keys in an array!
+					}
+					else if (char == "{")
+					{
+						currValue = {};
+						currValueType = "object";
+						addValue();
 					}
 				}
+			}
+			else // find value end
+			{
+				findValueEnd(char);
 			}
 		}
 		
@@ -407,9 +376,6 @@ class YSON
 		}
 	}
 	
-	
-	
-	
 	private function analyzesValue():Bool
 	{
 		return (index_1 != -1 && !state_key);
@@ -426,11 +392,10 @@ class YSON
 					postAddValue();
 				}
 			}
-		}// check for being negative number
-		
+		}
 		else
 		{
-			
+			// check for being negative number
 			if (currSlot - index_1 == 1 && prevChar == "-" && isOneOfThose(char, arr_numbers))
 			{
 				currValueType = "number";
@@ -448,14 +413,18 @@ class YSON
 					currValueType = "none";
 				}
 			}
+			//if(  isOneOfThose( char,[" ","\r","\n"] ) || ( !isWrappedInObject() && isOneOfThose(char,[",","]","}"]) )  )
+			//{
+				//postAddValue()
+			//}
 		}
 	}
 	
 	private function postAddValue(offset_2:Int = 0):Void
 	{
-		index_2 = as3hx.Compat.parseInt(currSlot + offset_2);
+		index_2 = currSlot + offset_2;
 		currValue = parseSubString();
-		//trace( "postAddValue", currValue );
+		//report( "postAddValue", currValue );
 		addValue();
 	}
 	
@@ -484,7 +453,7 @@ class YSON
 			{
 				throw new Error("YSON-Parsing-Error: Current Array is null. Last Key: " + currKey);
 			}
-			report("arr[" + CurrArray.length + "] = " + currValue + "  <" + currValueType + ">");
+			//report("arr[" + CurrArray.length + "] = " + currValue + "  <" + currValueType + ">");
 			CurrArray.push(currValue);
 		}
 		
@@ -505,9 +474,9 @@ class YSON
 	}
 	
 	
-	private function check4End():Bool// WIP < - - - - -
-	
+	private function check4End():Bool
 	{
+		// WIP < - - - - -
 		
 		if (isWrappedInObject())
 		{
@@ -529,7 +498,7 @@ class YSON
 		var i:Int = 0;
 		if (char != null)
 		{
-			i = as3hx.Compat.parseInt(currSlot - 1);
+			i = currSlot - 1;
 			while (i >= 0)
 			{
 				if (text2parse.charAt(i) == char)
@@ -541,7 +510,7 @@ class YSON
 		}
 		if (except != null)
 		{
-			i = as3hx.Compat.parseInt(currSlot - 1);
+			i = currSlot - 1;
 			while (i >= 0)
 			{
 				if (!isOneOfThose(text2parse.charAt(i), except))
@@ -561,12 +530,6 @@ class YSON
 		return hierarchyTypeHistory[hierarchyTypeHistory.length - 1];
 	}
 	
-	private function get_CurrObject():Dynamic
-	{
-		return hierarchy[hierarchy.length - 1];
-	}
-	
-	
 	private function addObject(o:Dynamic):Dynamic
 	{
 		hierarchy.push(o);
@@ -576,15 +539,10 @@ class YSON
 	
 	private function closeObject():Void
 	{
-		report("closeObject");
+		//report("closeObject");
 		hierarchy.splice(hierarchy.length - 1, 1);
 		hierarchyTypeHistory.splice(hierarchyTypeHistory.length - 1, 1);
 		checkHierarchy();
-	}
-	
-	private function get_CurrArray():Array<Dynamic>
-	{
-		return arrayHierarchy[arrayHierarchy.length - 1];
 	}
 	
 	private function addArray(a:Array<Dynamic>):Array<Dynamic>
@@ -596,7 +554,7 @@ class YSON
 	
 	private function closeArray():Void
 	{
-		report("closeArray");
+		//report("closeArray");
 		arrayHierarchy.splice(arrayHierarchy.length - 1, 1);
 		hierarchyTypeHistory.splice(hierarchyTypeHistory.length - 1, 1);
 		checkHierarchy();
@@ -606,12 +564,8 @@ class YSON
 	private function checkHierarchy():Void
 	{
 		state_key = (isWrappedInObject());
+		//report( hierarchyTypeHistory, "  | state_key: " + state_key );
 	}
-	
-	
-	
-	
-	
 	
 	private function parseKey():String
 	{
@@ -641,28 +595,24 @@ class YSON
 		return parseValue(str, currValueType);
 	}
 	
-	static private function parseValue(str:String, type:String):Dynamic//trace( "parseValue", str, type );
-	
+	static private function parseValue(str:String, type:String):Dynamic
 	{
-		
+		//report( "parseValue", str, type );
 		switch (type)
 		{
-			case "int":return as3hx.Compat.parseInt(str);
-			case "number":return as3hx.Compat.parseFloat(str);
-			case "boolean":return ((str == "true")) ? true:false;
-			case "string":return parseString(str);
-			case "none":return str;
-			default:return null;
+			case "int":		return Std.parseInt(str);
+			case "number":	return Std.parseFloat(str);
+			case "boolean":	return ((str == "true")) ? true:false;
+			case "string":	return parseString(str);
+			case "none":	return str;
+			default:		return null;
 		}
 	}
 	
-	
-	
 	// STRING ANALYZATION POST PROCESS
-	static private function parseString(str:String):Dynamic// handle escape chars - tab + newline
-	
+	static private function parseString(str:String):Dynamic
 	{
-		
+		// handle escape chars - tab + newline
 		while (str.indexOf("\\n") != -1)
 		{
 			str = StringTools.replace(str, "\\n", "\n");
@@ -696,7 +646,6 @@ class YSON
 		var doubleQM:Bool = false;
 		var phrase:String;
 		
-		
 		// get rid of brackets
 		if (src.length >= 2)
 		{
@@ -713,16 +662,15 @@ class YSON
 				{
 					phrase = src.substring(index + 1, currSlot);
 					arr.push(parseString(phrase));
-					//trace( "addValue[" + phrase + "]:String||YsonTable" );
+					//report( "addValue[" + phrase + "]:String||YsonTable" );
 					index = -1;
 					isString = false;
 					continue;
 				}
 			}
 			else if (index == -1)
-			// find start of next value
 			{
-				
+				// find start of next value
 				
 				// check 4 stuff 2 ignore
 				if (isOneOfThose(char, [" ", "\t", "\r", "\n"]))
@@ -753,17 +701,16 @@ class YSON
 				
 				index = currSlot;
 				continue;
-			}// find end of current value
-			
+			}
 			else
 			{
-				
+				// find end of current value
 				if (isOneOfThose(char, [" ", "\t", "\r", "\n", ","]))
 				{
 					phrase = src.substring(index, currSlot);
 					index = -1;
 					arr.push(parseValue(phrase, getTypeOfValue(phrase)));
-					//trace( "addValue[" + phrase + "]" );
+					//report( "addValue[" + phrase + "]" );
 					continue;
 				}
 			}
@@ -774,15 +721,15 @@ class YSON
 			phrase = src.substring(index, currSlot);
 			index = -1;
 			arr.push(parseValue(phrase, getTypeOfValue(phrase)));
+			//report( "addLastValue[" + phrase + "]" );
 		}
 		
 		return arr;
 	}
 	
-	static public function getPhraseBetween(src:String, startIndex:Int, start:String, end:String, noticeInterlacing:Bool = false, including:Bool = false):String//trace( "phraseBetween", src, including );
-	
+	static public function getPhraseBetween(src:String, startIndex:Int, start:String, end:String, noticeInterlacing:Bool = false, including:Bool = false):String
 	{
-		
+		//trace( "phraseBetween", src, including );
 		var interlacings:Int = 0;
 		var i:Int;
 		var index:Int = -1;
@@ -796,7 +743,7 @@ class YSON
 			{
 				if (index == -1)
 				{
-					index = as3hx.Compat.parseInt(startIndex + i);
+					index = startIndex + i;
 				}
 				
 				interlacings++;
@@ -836,12 +783,9 @@ class YSON
 		return isOneOfThose(src, ["true", "false"]);
 	}
 	
-	
-	
-	static private function getTypeOfValue(src:String):String// check 4 boolean
-	
+	static private function getTypeOfValue(src:String):String
 	{
-		
+		// check 4 boolean
 		if (isBoolean(src))
 		{
 			return "boolean";
@@ -868,32 +812,24 @@ class YSON
 			i++;
 		}
 		
-		if (i == src.length)
-		// src was trawled to the end
+		if (i == src.length) // src was trawled to the end
 		{
-			
+			if (comma)
 			{
-				if (comma)
-				{
-					return "number";
-				}
-				else
-				{
-					return "int";
-				}
+				return "number";
+			}
+			else
+			{
+				return "int";
 			}
 		}
 		
 		return "string";
 	}
 	
+	// TODO: Refactor to distinct class: YSONWriter
 	
-	
-	// write
-	static private var enableFormatting:Bool;
-	static private var useSingleQuoMark:Bool;
-	static private var tabs:Int;
-	static private var strBuffer:String;
+	// region WRITE
 	
 	/**
 	 * Takes only basic data types (Object, Array, Number, int, String). Any other will be coersed to String.
@@ -901,18 +837,21 @@ class YSON
 	 * @param	_enableFormatting	False will cause no line breaks and tabs which leads to less readability. Default is true.
 	 * @return  					A YSON-parseable String and serialized replica of the param obj.
 	 */
-	static public function writeData(obj:Dynamic, _enableFormatting:Bool = true, _useSingleQuoMark:Bool = false):String
+	static public function writeData(obj:Dynamic, enableFormatting:Bool = true, useSingleQuoMark:Bool = false):String
 	{
-		enableFormatting = _enableFormatting;
-		useSingleQuoMark = _useSingleQuoMark;
-		
-		writeObject(obj);
-		var str:String = strBuffer;
-		strBuffer = null;
-		return str;
+		YSONWriter.enableFormatting = enableFormatting;
+		YSONWriter.useSingleQuoMark = useSingleQuoMark;
+		return YSONWriter.writeObject(obj);
 	}
 	
-	
+}
+
+class YSONWriter
+{
+	static public var enableFormatting:Bool;
+	static public var useSingleQuoMark:Bool;
+	static private var tabs:Int;
+	static private var strBuffer:String; // TODO: change to string buff
 	
 	static private function writeValue(val:Dynamic):Void
 	{
@@ -940,18 +879,13 @@ class YSON
 	static private function prepareValue(val:Dynamic):String
 	{
 		if (Std.is(val, String))
-		// TODO: turn " into \" and check for escaped characters in parse-section
 		{
-			
+			// TODO: turn " into \" and check for escaped characters in parse-section
 			return writwQuotaMark() + val + writwQuotaMark();
-		}// number or int (or smthg not really parseable)
-		
-		else
+		}
+		else // number or int (or smthg not really parseable)
 		{
-			
-			{
-				return Std.string(val);
-			}
+			return Std.string(val);
 		}
 	}
 	
@@ -977,7 +911,7 @@ class YSON
 		writeText("]");
 	}
 	
-	static private function writeObject(o:Dynamic):Void
+	static public function writeObject(o:Dynamic):String
 	{
 		writeText("{");
 		tabs++;
@@ -997,9 +931,11 @@ class YSON
 		
 		tabs--;
 		writeText("}");
+		
+		var str:String = strBuffer;
+		strBuffer = null;
+		return str;
 	}
-	
-	
 	
 	static private function writeText(str:String, addBreak:Bool = true):Void
 	{
@@ -1021,7 +957,6 @@ class YSON
 			strBuffer += "\n";
 		}
 	}
-	
 	
 	static private function genString(char:String, amount:Int):String
 	{

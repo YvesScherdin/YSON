@@ -1,4 +1,4 @@
-﻿package yves.net
+﻿package
 {
 	/**
 	 * @version 0.3.9
@@ -642,7 +642,7 @@
 						{
 							phrase = getPhraseBetween(  src, currSlot, "[", "]", true, true );
 							arr.push( parseArray( phrase ) );
-						//	trace( "addValue[" + phrase + "]" );
+							//	trace( "addValue[" + phrase + "]" );
 							currSlot += phrase.length;
 							continue;
 						}
@@ -728,8 +728,6 @@
 		{
 			return isOneOfThose( src, ["true", "false"] );
 		}
-		
-		
 		
 		static private function getTypeOfValue( src:String ):String
 		{

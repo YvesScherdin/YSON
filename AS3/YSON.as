@@ -588,7 +588,6 @@
 				}
 				else
 				{
-					
 					if ( index == -1 )
 					{
 						// find start of next value
@@ -606,7 +605,7 @@
 						{
 							phrase = getPhraseBetween(  src, currSlot, "[", "]", true, true );
 							arr.push( parseArray( phrase ) );
-						//	trace( "addValue[" + phrase + "]" );
+							//	trace( "addValue[" + phrase + "]" );
 							currSlot += phrase.length;
 							continue;
 						}
