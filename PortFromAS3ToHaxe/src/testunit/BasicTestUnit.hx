@@ -54,6 +54,26 @@ class BasicTestUnit
 			return noteError(note);
 	}
 	
+	public function assertTypeInt(note:String, node:Dynamic):Bool
+	{
+		var str:String = Std.string(Type.typeof(node));
+		
+		if (str == "TInt")
+			return noteSuccess(note + ": " + node);
+		else
+			return noteError(note + ": node + ("+str+")");
+	}
+	
+	public function assertTypeFloat(note:String, node:Dynamic):Bool
+	{
+		var str:String = Std.string(Type.typeof(node));
+		
+		if (str == "TFloat")
+			return noteSuccess(note + ": " + node);
+		else
+			return noteError(note + ": node + ("+str+")");
+	}
+	
 	public function assertEqual(note:String, actualValue:Dynamic, expectedValue:Dynamic):Bool
 	{
 		if (actualValue == expectedValue)

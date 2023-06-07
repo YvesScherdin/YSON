@@ -34,69 +34,24 @@ class YSON
 {
 	// region STATIC {
 	static private var STRICT_ERROR_REPORT:Bool = true;
-	
 	static public var allowVerbose:Bool;
 	
-	static private var arr_numbers:Array<Dynamic> = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-	static private var arr_no_key:Array<Dynamic> = [" ", "\n", "\r", "\t", ",", ";", ".", "-", "<", ">", "|", "+"];
-	static private var arr_ignore_key:Array<Dynamic> = [" ", "\n", "\r", ",", ";", "\t", "[", "]", "{", "}"];
-	static private var arr_ignore_value:Array<Dynamic> = [" ", "\n", "\r", "\t", "="];
-	static private var valueTypes:Array<Dynamic> = ["none", "string", "object", "number", "int", "boolean"];
 	static inline private var ESCAPE_CHAR:String = "\\";
-	
+	static private var numberCharacters:Array<String> = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+	static private var noKeyCharacters:Array<String> = [" ", "\n", "\r", "\t", ",", ";", ".", "-", "<", ">", "|", "+"];
+	static private var ignoreKeyCharacters:Array<String> = [" ", "\n", "\r", ",", ";", "\t", "[", "]", "{", "}"];
+	static private var ignoreValueCharacters:Array<String> = [" ", "\n", "\r", "\t", "="];
+	static private var valueTypes:Array<String> = ["none", "string", "object", "number", "int", "boolean"];
 	
 	static public function parseData(source_str:String):Dynamic
 	{
 		return new YSON().parseSource(source_str);
 	}
 	
-	static private function cutCharFrom(char:String, source_str:String):String
+	static inline private function isOneOfThose(stuff:String, arr:Array<String>):Bool
 	{
-		var a:Array<Dynamic> = source_str.split(char);
-		return concatStrings(a);
-	}
-	
-	static private function cloneArray(a:Array<Dynamic>):Array<Dynamic>
-	{
-		var b:Array<Dynamic> = [];
-		var i:Int = 0;
-		while (i < a.length)
-		{
-			b[i] = a[i];
-			i++;
-		}
-		
-		return b;
-	}
-	
-	static private function getAmountIn(pattern_str:String, source_str:String, startIndex:Int = 0, holder:Int = 0):Int
-	{
-		var i:Int = source_str.indexOf(pattern_str, startIndex);
-		if (i == -1)
-		{
-			return holder;
-		}
-		else
-		{
-			return getAmountIn(pattern_str, source_str, ++i, ++holder);
-		}
-	}
-	
-	static private function concatStrings(strArr:Array<Dynamic>):String
-	{
-		var str:String = "";
-		var i:Int = 0;
-		while (i < strArr.length)
-		{
-			str += strArr[i];
-			i++;
-		}
-		return str;
-	}
-	
-	static private function isOneOfThose(stuff:Dynamic, arr:Array<Dynamic>):Bool
-	{
-		var i:Int = 0;
+		return arr.indexOf(stuff) != -1;
+		/*var i:Int = 0;
 		while (i < arr.length)
 		{
 			if (stuff == arr[i])
@@ -105,12 +60,12 @@ class YSON
 			}
 			i++;
 		}
-		return false;
+		return false;*/
 	}
 	
-	static private function isCharNumber(char:String):Bool
+	static inline private function isCharNumber(char:String):Bool
 	{
-		return (isOneOfThose(char, ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]));
+		return isOneOfThose(char, numberCharacters);
 	}
 	
 	
@@ -179,9 +134,7 @@ class YSON
 	private var doubleQuoMarks:Bool;
 	private var prevChar:String;
 
-	public function new()
-	{
-	}
+	public function new() {}
 	
 	public function parseSource(source_str:String):Dynamic
 	{
@@ -296,7 +249,7 @@ class YSON
 			{
 				//if( !isOneOfThose( char,["\n","\r"] ) )
 				//report( "char["+currSlot+"]: " + char );
-				if (!isOneOfThose(char, arr_ignore_key))
+				if (!isOneOfThose(char, ignoreKeyCharacters))
 				{
 					index_1 = currSlot;
 				}
@@ -324,7 +277,7 @@ class YSON
 		{
 			if (index_1 == -1) // find value start
 			{
-				if (!isOneOfThose(char, arr_ignore_value))
+				if (!isOneOfThose(char, ignoreValueCharacters))
 				{
 					if (index_1 == -1)
 					{
@@ -337,7 +290,7 @@ class YSON
 						currValueType = "string";
 						doubleQuoMarks = char == "\"";
 					}
-					else if (isOneOfThose(char, arr_numbers))
+					else if (isOneOfThose(char, numberCharacters))
 					{
 						currValueType = "number";
 					}
@@ -396,21 +349,22 @@ class YSON
 		else
 		{
 			// check for being negative number
-			if (currSlot - index_1 == 1 && prevChar == "-" && isOneOfThose(char, arr_numbers))
+			if (currSlot - index_1 == 1 && prevChar == "-" && isOneOfThose(char, numberCharacters))
 			{
 				currValueType = "number";
 			}
 			
-			if (isOneOfThose(char, [" ", "\r", "\n", "[", "{", "]", "}", "\t"])
-				|| (!isWrappedInObject() && isOneOfThose(char, [",", "]", "}"])))
+			if ([" ", "\r", "\n", "[", "{", "]", "}", "\t"].indexOf(char) != -1
+				|| (!isWrappedInObject() && [",", "]", "}"].indexOf(char) != -1))
 			{
 				postAddValue();
 			}
 			else if (currValueType == "number")
 			{
-				if (!isCharNumber(char) && char != ".")
+				//if (!isCharNumber(char) && char != ".")
+				if (numberCharacters.indexOf(char) == -1 && char != ".")
 				{
-					currValueType = "none";
+					currValueType = "none"; // will be treated as string
 				}
 			}
 			//if(  isOneOfThose( char,[" ","\r","\n"] ) || ( !isWrappedInObject() && isOneOfThose(char,[",","]","}"]) )  )
@@ -487,8 +441,8 @@ class YSON
 		return false;
 	}
 	
-	
-	private function getCharIndexBefore(char:String = null, except:Array<Dynamic> = null):Int
+	/*
+	private function getCharIndexBefore(char:String = null, except:Array<String> = null):Int
 	{
 		if ((char == null && except == null) || (char != null && except != null))
 		{
@@ -523,7 +477,7 @@ class YSON
 		
 		return ++i;
 	}
-	
+	*/
 	
 	private function isWrappedInObject():Bool
 	{
@@ -729,7 +683,7 @@ class YSON
 	
 	static public function getPhraseBetween(src:String, startIndex:Int, start:String, end:String, noticeInterlacing:Bool = false, including:Bool = false):String
 	{
-		//trace( "phraseBetween", src, including );
+		//report( "phraseBetween", src, including );
 		var interlacings:Int = 0;
 		var i:Int;
 		var index:Int = -1;
@@ -778,15 +732,10 @@ class YSON
 		}
 	}
 	
-	static private function isBoolean(src:String):Bool
-	{
-		return isOneOfThose(src, ["true", "false"]);
-	}
-	
 	static private function getTypeOfValue(src:String):String
 	{
 		// check 4 boolean
-		if (isBoolean(src))
+		if (src == "true" || src == "false")
 		{
 			return "boolean";
 		}
@@ -798,7 +747,7 @@ class YSON
 		i = 0;
 		while (i < src.length)
 		{
-			if (!isOneOfThose(src.charAt(i), arr_numbers))
+			if (!isOneOfThose(src.charAt(i), numberCharacters))
 			{
 				if (!comma && src.charAt(i) == ".")
 				{
@@ -969,3 +918,13 @@ class YSONWriter
 		return str;
 	}
 }
+/*
+@:enum abstract ParsedValueType
+{
+	var PUnknown = 0;
+	var PBool = 1;
+	var PInt = 2;
+	var PFloat = 3;
+	var PObject = 4;
+	var PString = 5;
+}*/
