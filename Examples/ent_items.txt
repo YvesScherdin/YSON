@@ -1,0 +1,11 @@
+all
+[
+	{ id="lootSmallA"     model="cmn_itm_loot|0"  soundSet="lootSmall"   pickUpCost=1  lootType="default"      unique=false }
+	{ id="lootBigB"       model="cmn_itm_loot|1"  soundSet="lootBig"     pickUpCost=2  lootType="default"      unique=false }
+	
+	{ id="lootResource"   model="cmn_itm_loot|4"  soundSet="lootSmall"   pickUpCost=1  lootType="resource"     unique=false }
+	{ id="lootSpecial"    model="cmn_itm_loot|4"  soundSet="lootSmall"   pickUpCost=1  lootType="special"      unique=true  }
+	{ id="lootBlueprint"  model="cmn_itm_loot|3"  soundSet="lootSmall"   pickUpCost=1  lootType="blueprint"    unique=true  }
+	
+	// { id="lootOld"     model="cmn_itm_loot|2"  soundSet="lootSmall"   pickUpCost=2  lootType="doc"     }
+]
